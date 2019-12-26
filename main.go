@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
@@ -109,8 +110,8 @@ func loadKey(dir string) (key, error) {
 	// check for user password ".rekey_pass" file
 	pass, err := ioutil.ReadFile(filepath.Join(dir, ".dkey_pass"))
 	if err == nil {
-		salt := pbkdf2.Key(pass, pass, 16, sha512.Size, sha512.New)
-		key := argon2.IDKey(pass, salt, 1, 64*1024, 4, seedSize)
+		salt := pbkdf2.Key(pass, pass, 1024, sha512.Size, sha512.New)
+		key := argon2.IDKey(pass, salt, 256, 64*1024, 4, seedSize)
 		return key, nil
 	}
 	return nil, fmt.Errorf("missing .dkey_pass or .dkey_master in dir '%v'", dir)
@@ -405,10 +406,12 @@ func main() {
 		baseDir = os.Args[1]
 	}
 
+	now := time.Now()
 	rootKey, err := loadKey(baseDir)
 	if err != nil {
 		log.Fatalf("main.loadKey: err=%v", err)
 	}
+	log.Printf("root key: load took %v ms", ((time.Now().UnixNano() - now.UnixNano()) / 1000000))
 	// log.Printf("root key: %v", base64.StdEncoding.EncodeToString(rootKey))
 
 	configs, err := loadConfig(baseDir)
